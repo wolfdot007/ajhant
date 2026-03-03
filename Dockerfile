@@ -1,9 +1,10 @@
-FROM mcr.microsoft.com/playwright/python:v1.42.0-jammy
+FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY . .
-
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["sh", "-c", "python -m uvicorn api_agent:app --host 0.0.0.0 --port ${PORT:-8080}"]
+COPY . .
+
+CMD ["sh", "-c", "uvicorn api_agent:app --host 0.0.0.0 --port ${PORT:-8080}"]
