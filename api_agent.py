@@ -94,3 +94,6 @@ def portfolio():
     return {
         "works": []
     }
+    from fastapi.staticfiles import StaticFiles
+
+app.mount("/deliverables", StaticFiles(directory="deliverables"), name="deliverables")
