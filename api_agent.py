@@ -37,9 +37,17 @@ class ExecuteRequest(BaseModel):
 
 
 def load_portfolio():
-    with open(PORTFOLIO_FILE, "r") as f:
-        return json.load(f)
+    try:
+        with open(PORTFOLIO_FILE, "r") as f:
+            data = f.read().strip()
 
+            if not data:
+                return {"works": []}
+
+            return json.loads(data)
+
+    except (json.JSONDecodeError, FileNotFoundError):
+        return {"works": []}
 
 def save_portfolio(data):
     with open(PORTFOLIO_FILE, "w") as f:
