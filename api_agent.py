@@ -67,7 +67,7 @@ Generate a cinematic Kling-ready structured prompt.
 """
 
     response = client.chat.completions.create(
-        model="llama3-8b-8192",  # FREE GROQ MODEL
+        model="llama-3.1-8b-instant",  # FREE GROQ MODEL
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
