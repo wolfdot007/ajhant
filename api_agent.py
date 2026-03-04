@@ -1,6 +1,7 @@
 import os
 import uuid
 import json
+from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI
 from pydantic import BaseModel
 from openai import OpenAI
