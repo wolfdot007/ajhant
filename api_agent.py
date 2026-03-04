@@ -111,9 +111,9 @@ def agent_services():
 def agent_execute(req: ExecuteRequest, x_api_key: str = Header(None)):
 
     expected_key = os.getenv("ATELIER_API_KEY")
-
-    if x_api_key != expected_key:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+ 
+    if x_api_key and x_api_key != expected_key:
+         raise HTTPException(status_code=401, detail="Unauthorized")
 
     idea = req.brief
     mood = req.params.get("mood", "cinematic")
