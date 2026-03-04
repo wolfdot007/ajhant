@@ -8,6 +8,9 @@ from openai import OpenAI
 
 app = FastAPI()
 
+
+os.makedirs("deliverables", exist_ok=True)
+
 # ---- GROQ FREE LLM CLIENT ----
 client = OpenAI(
     api_key=os.getenv("GROQ_API_KEY"),
