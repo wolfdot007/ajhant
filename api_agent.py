@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from openai import OpenAI
+from fastapi import Header, HTTPException
 
 app = FastAPI()
 
@@ -107,7 +108,12 @@ def agent_services():
 
 
 @app.post("/agent/execute")
-def agent_execute(req: ExecuteRequest):
+def agent_execute(req: ExecuteRequest, x_api_key: str = Header(None)):
+
+    expected_key = os.getenv("ATELIER_API_KEY")
+
+    if x_api_key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     idea = req.brief
     mood = req.params.get("mood", "cinematic")
