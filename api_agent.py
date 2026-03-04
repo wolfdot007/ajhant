@@ -83,7 +83,7 @@ Generate a cinematic Kling-ready structured prompt.
     deliverable_id = str(uuid.uuid4())
     os.makedirs("deliverables", exist_ok=True)
     file_path = f"deliverables/{deliverable_id}.json"
-
+    
     with open(file_path, "w") as f:
         json.dump({"content": output_text}, f)
 
