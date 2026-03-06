@@ -1,179 +1,136 @@
 import os
 import uuid
 import json
+import requests
 from datetime import datetime
-from typing import Dict, Any
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from openai import OpenAI
-from fastapi import Header, HTTPException
 
 app = FastAPI()
+
+# -------------------------------
+# CONFIG
+# -------------------------------
 
 DELIVERABLE_DIR = "deliverables"
 PORTFOLIO_FILE = "portfolio.json"
 
 os.makedirs(DELIVERABLE_DIR, exist_ok=True)
 
-if not os.path.exists(PORTFOLIO_FILE):
-    with open(PORTFOLIO_FILE, "w") as f:
-        json.dump({"works": []}, f)
+app.mount("/deliverables", StaticFiles(directory=DELIVERABLE_DIR), name="deliverables")
 
-
-
+# Groq client
 client = OpenAI(
     api_key=os.getenv("GROQ_API_KEY"),
     base_url="https://api.groq.com/openai/v1"
 )
 
-
-
-class ExecuteRequest(BaseModel):
-    service_id: str
-    brief: str
-    params: Dict[str, Any] = {}
-
-
+# -------------------------------
+# UTILITIES
+# -------------------------------
 
 def load_portfolio():
+    if not os.path.exists(PORTFOLIO_FILE):
+        return []
+
     try:
         with open(PORTFOLIO_FILE, "r") as f:
-            data = f.read().strip()
-
-            if not data:
-                return {"works": []}
-
-            return json.loads(data)
-
-    except (json.JSONDecodeError, FileNotFoundError):
-        return {"works": []}
+            return json.load(f)
+    except:
+        return []
 
 def save_portfolio(data):
     with open(PORTFOLIO_FILE, "w") as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=2)
 
-
-def add_to_portfolio(deliverable_id: str, caption: str):
+def add_to_portfolio(file_name, caption):
     portfolio = load_portfolio()
 
-    portfolio["works"].append({
-        "url": f"/deliverables/{deliverable_id}.json",
-        "type": "video_prompt",
+    portfolio.append({
+        "url": f"/deliverables/{file_name}",
+        "type": "image",
         "caption": caption,
         "created_at": datetime.utcnow().isoformat()
     })
 
-    # keep last 10
-    portfolio["works"] = portfolio["works"][-10:]
-
     save_portfolio(portfolio)
 
-
+# -------------------------------
+# PROTOCOL ENDPOINTS
+# -------------------------------
 
 @app.get("/agent/profile")
-def agent_profile():
+def profile():
     return {
-        "name": "Kling Cinematic Prompt Architect",
-        "description": "Transforms rough ideas into cinematic Kling-ready prompts optimized for short-form video.",
-        "avatar_url": "https://cdn-icons-png.flaticon.com/512/4712/4712027.png",
-        "capabilities": [
-            "cinematic video prompt engineering",
-            "lighting architecture",
-            "camera choreography",
-            "viral short-form optimization"
-        ]
+        "name": "Cinematic Image Architect",
+        "description": "Generates cinematic AI images from ideas.",
+        "avatar_url": "https://placehold.co/256x256",
+        "capabilities": ["image_gen"]
     }
 
 
 @app.get("/agent/services")
-def agent_services():
+def services():
     return {
         "services": [
             {
-                "id": "cinematic_basic",
-                "title": "Cinematic Kling Prompt",
-                "description": "Professional cinematic prompt optimized for Kling video generation.",
-                "price_usd": 5,
-                "category": "video"
-            },
-            {
-                "id": "cinematic_pro",
-                "title": "Cinematic Prompt + Shot Breakdown",
-                "description": "Advanced cinematic prompt including camera movements and shot design.",
-                "price_usd": 12,
-                "category": "video"
-            },
-            {
-                "id": "viral_bundle",
-                "title": "Cinematic Prompt + Viral Strategy",
-                "description": "Cinematic prompt plus short-form growth strategy.",
-                "price_usd": 18,
-                "category": "growth"
+                "id": "cinematic_image",
+                "title": "Cinematic AI Image",
+                "description": "Generate a cinematic AI image based on your idea.",
+                "price_usd": 3.99,
+                "category": "image_gen"
             }
         ]
     }
 
 
-@app.post("/agent/execute")
-def agent_execute(req: ExecuteRequest, x_api_key: str = Header(None)):
+class ExecuteRequest(BaseModel):
+    service_id: str
+    brief: str
+    params: dict | None = None
 
-    expected_key = os.getenv("ATELIER_API_KEY")
- 
-    if x_api_key and x_api_key != expected_key:
-         raise HTTPException(status_code=401, detail="Unauthorized")
+
+@app.post("/agent/execute")
+def execute(req: ExecuteRequest):
 
     idea = req.brief
-    mood = req.params.get("mood", "cinematic")
-    platform = req.params.get("platform", "short-form")
 
-    system_prompt = """
-You are a professional cinematic AI video prompt engineer.
-
-Generate highly optimized Kling-ready prompts including:
-- scene description
-- camera choreography
-- lighting design
-- motion direction
-- negative prompts
-
-Structure the output clearly.
-"""
-
-    user_prompt = f"""
-Idea: {idea}
-Mood: {mood}
-Platform: {platform}
-
-Generate a cinematic Kling-ready structured prompt.
-"""
-
+    # Step 1: Improve prompt
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
+            {"role": "system", "content": "You are an AI art prompt engineer."},
+            {"role": "user", "content": f"Create a cinematic image prompt for: {idea}"}
         ]
     )
 
-    output_text = response.choices[0].message.content
+    prompt = response.choices[0].message.content
+
+    # Step 2: Generate image
+    image_url = f"https://image.pollinations.ai/prompt/{prompt}"
+
+    img = requests.get(image_url)
 
     deliverable_id = str(uuid.uuid4())
-    file_path = f"{DELIVERABLE_DIR}/{deliverable_id}.json"
+    filename = f"{deliverable_id}.png"
+    file_path = os.path.join(DELIVERABLE_DIR, filename)
 
-    with open(file_path, "w") as f:
-        json.dump({"content": output_text}, f)
+    with open(file_path, "wb") as f:
+        f.write(img.content)
 
-    add_to_portfolio(deliverable_id, idea)
+    # Step 3: Save to portfolio
+    add_to_portfolio(filename, idea)
 
     return {
         "result": "success",
-        "deliverable_url": f"/deliverables/{deliverable_id}.json"
+        "deliverable_url": f"/deliverables/{filename}"
     }
 
 
 @app.get("/agent/portfolio")
-def agent_portfolio():
-    return load_portfolio()
-
-app.mount("/deliverables", StaticFiles(directory=DELIVERABLE_DIR), name="deliverables")
+def portfolio():
+    return {
+        "works": load_portfolio()
+    }
